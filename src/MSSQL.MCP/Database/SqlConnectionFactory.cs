@@ -32,9 +32,16 @@ public class SqlConnectionFactory(IOptions<DatabaseOptions> databaseOptions) : I
         try
         {
             await using var connection = await CreateOpenConnectionAsync(cancellationToken);
-            await using var command = new SqlCommand("SELECT 1", connection);
+            await using var command = new SqlCommand("SELECT 1", connection)
+            {
+                CommandTimeout = 15
+            };
             await command.ExecuteScalarAsync(cancellationToken);
             return true;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch
         {

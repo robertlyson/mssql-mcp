@@ -2,19 +2,12 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <EnableSdkContainerSupport>true</EnableSdkContainerSupport>
-    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
-    <ContainerRepository>mssql-mcp</ContainerRepository>
-    <ContainerTitle>mssql-mcp</ContainerTitle>
-    <ContainerImageTags>$(VersionPrefix);latest</ContainerImageTags>
-    <ContainerRuntimeIdentifiers>linux-x64;linux-arm64;linux-arm;</ContainerRuntimeIdentifiers>
-    <RuntimeIdentifiers>osx-x64;osx-arm64;linux-x64;linux-arm64;linux-arm;win-x64;</RuntimeIdentifiers>
-    <!-- Remove parallel builds, to avoid race conditions -->
-    <ContainerPublishInParallel>false</ContainerPublishInParallel>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>mssql-mcp</ToolCommandName>
+    <RollForward>Major</RollForward>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Akka.Hosting" />
     <PackageReference Include="Microsoft.Data.SqlClient" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="ModelContextProtocol" />

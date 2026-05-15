@@ -50,8 +50,8 @@ jobs:
         shell: bash
         run: dotnet test -c Release 
 
-  docker-build:
-    name: Docker Build Validation
+  tool-pack:
+    name: .NET Tool Pack Validation
     runs-on: ubuntu-latest
 
     steps:
@@ -66,13 +66,11 @@ jobs:
         with:
           global-json-file: "./global.json"
 
-      - name: "Build Docker image"
+      - name: "Pack .NET tool"
         run: |
-          dotnet publish src/MSSQL.MCP/MSSQL.MCP.csproj \
-            --os linux \
-            --arch x64 \
+          dotnet pack src/MSSQL.MCP/MSSQL.MCP.csproj \
             -c Release \
-            /t:PublishContainer
+            --output ./artifacts
 
-      - name: "Verify Docker image exists"
-        run: docker images | grep mssql-mcp 
+      - name: "Verify .NET tool package exists"
+        run: test -n "$(ls ./artifacts/MSSQL.MCP.*.nupkg)"

@@ -1,12 +1,9 @@
 <Project>
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    <!-- Nuget package versions -->
-    <AkkaHostingVersion>1.5.55.1</AkkaHostingVersion>
   </PropertyGroup>
   <!-- App dependencies -->
   <ItemGroup>
-    <PackageVersion Include="Akka.Hosting" Version="$(AkkaHostingVersion)" />
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="6.1.2" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="9.0.8" />
     <PackageVersion Include="ModelContextProtocol" Version="0.2.0-preview.3" />
@@ -18,7 +15,7 @@
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageVersion Include="Testcontainers.MSSql" Version="4.8.1" />
   </ItemGroup>
-  <!-- SourceLink support for all Akka.NET projects -->
+  <!-- SourceLink support -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
   </ItemGroup>

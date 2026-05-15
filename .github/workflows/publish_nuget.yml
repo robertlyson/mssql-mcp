@@ -7,12 +7,8 @@ on:
 
 jobs:
   publish-nuget:
-
     name: publish-nuget
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
+    runs-on: ubuntu-latest
 
     steps:
     - name: "Checkout"
@@ -20,7 +16,7 @@ jobs:
       with:
         lfs: true
         fetch-depth: 0
-        
+
     - name: "Install .NET SDK"
       uses: actions/setup-dotnet@v5.0.0
       with:
@@ -34,6 +30,12 @@ jobs:
       run: |
         ./build.ps1
 
+    - name: "Pack .NET tool"
+      run: dotnet pack src/MSSQL.MCP/MSSQL.MCP.csproj -c Release --output ./artifacts
+
+    - name: "Publish .NET tool"
+      run: dotnet nuget push "./artifacts/*.nupkg" --api-key "${{ secrets.NUGET_API_KEY }}" --source "https://api.nuget.org/v3/index.json" --skip-duplicate
+
     - name: release
       uses: actions/create-release@v1
       id: create_release
@@ -45,10 +47,3 @@ jobs:
         body_path: RELEASE_NOTES.md
       env:
         GITHUB_TOKEN: ${{ github.token }}
-
-   # - name: Upload Release Asset
-   #   uses: AButler/upload-release-assets@v3.0
-   #   with:
-   #       repo-token: ${{ github.token }}
-   #       release-tag: ${{ github.ref_name }}
-   #       files: 'output/*.nupkg'

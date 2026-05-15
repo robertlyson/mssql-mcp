@@ -6,7 +6,7 @@ A .NET-powered Model Context Protocol (MCP) server for Microsoft SQL Server.
 
 Why does this exist? Because the other MCP solutions in market for this are generally janky pieces of shit that don't work - certainly not on Windows.
 
-This MCP server provides AI agents with robust, reliable access to Microsoft SQL Server databases through a clean, well-architected .NET application using Akka.NET for internal coordination and the official MCP C# SDK for protocol compliance.
+This MCP server provides AI agents with robust, reliable access to Microsoft SQL Server databases through a clean, well-architected .NET application using the official MCP C# SDK for protocol compliance.
 
 ## Features
 
@@ -15,7 +15,7 @@ This MCP server provides AI agents with robust, reliable access to Microsoft SQL
 - **Connection Validation**: Automatic database connectivity validation on startup
 - **Error Handling**: Comprehensive error handling with clear, actionable error messages
 - **Table Formatting**: Query results formatted in readable tables for AI consumption
-- **Docker Support**: Easy deployment with built-in .NET Docker tooling
+- **.NET Tool Support**: Install once and launch directly from MCP client configuration
 
 ## Available Tools
 
@@ -52,33 +52,27 @@ MSSQL_CONNECTION_STRING="Server=myserver.database.windows.net;Database=mydatabas
 
 ## Running the MCP Server
 
-### Option 1: Docker (Recommended)
-
-The easiest way to run the MCP server is using Docker with .NET's built-in container support.
-
-#### Build and Run with Docker
-
-Clone the repository
+Install the MCP server as a .NET tool. This lets MCP clients start the server process directly instead of creating a Docker container for every configured database.
 
 ```bash
-# Clone the repository
-git clone https://github.com/Aaronontheweb/mssql-mcp.git
-cd mssql-mcp
+dotnet tool install --global MSSQL.MCP
 ```
 
-Build the Docker image
+If you are installing from a local checkout:
 
 ```bash
-dotnet publish --os linux --arch x64 /t:PublishContainer
+dotnet pack src/MSSQL.MCP/MSSQL.MCP.csproj -c Release -o ./artifacts
+dotnet tool install --global MSSQL.MCP --add-source ./artifacts
 ```
 
-You can run the container directly if you wish, but it's **probably best** to let the MCP server spin up the client:
+After installation, make sure the .NET tools directory is on the PATH seen by your MCP client:
 
 ```bash
-# Run the container
-docker run -it --rm \
-  -e MSSQL_CONNECTION_STRING="Server=host.docker.internal;Database=MyDB;Trusted_Connection=true;" \
-  mssql-mcp:latest
+# macOS/Linux
+export PATH="$PATH:$HOME/.dotnet/tools"
+
+# Windows PowerShell
+$env:PATH += ";$env:USERPROFILE\.dotnet\tools"
 ```
 
 ## MCP Client Configuration
@@ -91,17 +85,9 @@ Add to your Cursor settings (`Cursor Settings > Features > Model Context Protoco
 {
   "mcpServers": {
     "mssql": {
-      "command": "docker",
-      "args": [
-          "run",
-          "-i",
-          "--rm",
-          "-e",
-          "MSSQL_CONNECTION_STRING",
-          "mssql-mcp:latest"
-      ],
+      "command": "mssql-mcp",
       "env": {
-          "MSSQL_CONNECTION_STRING": "Server=host.docker.internal,1533; Database=MyDb; User Id=myUser; Password=My(!)Password;TrustServerCertificate=true;"
+        "MSSQL_CONNECTION_STRING": "Server=localhost,1533; Database=MyDb; User Id=myUser; Password=My(!)Password;TrustServerCertificate=true;"
       }
     }
   }
@@ -119,17 +105,9 @@ Add to your Claude Desktop configuration file:
 {
   "mcpServers": {
     "mssql": {
-      "command": "docker",
-      "args": [
-          "run",
-          "-i",
-          "--rm",
-          "-e",
-          "MSSQL_CONNECTION_STRING",
-          "mssql-mcp:latest"
-      ],
+      "command": "mssql-mcp",
       "env": {
-          "MSSQL_CONNECTION_STRING": "Server=host.docker.internal,1533; Database=MyDb; User Id=myUser; Password=My(!)Password;TrustServerCertificate=true;"
+        "MSSQL_CONNECTION_STRING": "Server=localhost,1533; Database=MyDb; User Id=myUser; Password=My(!)Password;TrustServerCertificate=true;"
       }
     }
   }
@@ -153,32 +131,17 @@ This is the top-level section where you define all your custom MCP servers. You 
 
 This is the **unique name** you've chosen for this particular SQL Server integration. Claude will use this name to refer to this database connection.
 
-##### `"command": "docker"`
+##### `"command": "mssql-mcp"`
 
-This line tells Claude Desktop to launch the MCP server using **Docker**. This means the actual server software runs inside an isolated container, 
-and you'll need **Docker Desktop** installed and running on your Windows/mac/Linux machine for this to work. Alternatively, you can use remote Docker server
-using [custon context](https://docs.docker.com/engine/manage-resources/contexts/).
-
-##### `"args": [...]`
-
-These are the **arguments** Claude Desktop passes to the `docker` command when starting the container:
-
-* `"run"`: This standard Docker command creates and starts a new container.
-* `"-i"`: Stands for "interactive," keeping the standard input open for communication between the MCP server and Claude Desktop.
-* `"--rm"`: This important argument tells Docker to **automatically remove the container** when it stops. This helps keep your Docker environment tidy.
-* `"-e", "MSSQL_CONNECTION_STRING"`: This passes an **environment variable** named `MSSQL_CONNECTION_STRING` into the Docker container.
-* `"mssql-mcp:latest"`: This specifies the **Docker image** to use. This image (`mssql-mcp` with the `latest` tag) contains the actual MCP server application 
-   designed to interact with SQL Server. You'll need to ensure this image is available (either built locally or pulled from a Docker registry).
+This line tells Claude Desktop to launch the installed .NET tool directly. Each configured database gets its own lightweight MCP process while the client is connected, not a background Docker container.
 
 ##### `"env": {...}`
 
-This section defines the **environment variables** that will be set when Docker executes the command.
+This section defines the **environment variables** that will be set when the MCP client starts the tool.
 
-* `"MSSQL_CONNECTION_STRING": "Server=host.docker.internal,1533; Database=MyDb; User Id=myUser; Password=My(!)Password;TrustServerCertificate=true;"`
-    * This is the **SQL Server connection string** that the `mssql-mcp` Docker container will use to connect to your database.
-    * `Server=host.docker.internal,1533`: `host.docker.internal` is a special Docker DNS name that lets the container reach your **host machine's IP address**. 
-       This is how the MCP server inside Docker can connect to your SQL Server instance, which is presumably running directly on your machine. `1533` is the 
-       port your SQL Server is listening on.
+* `"MSSQL_CONNECTION_STRING": "Server=localhost,1533; Database=MyDb; User Id=myUser; Password=My(!)Password;TrustServerCertificate=true;"`
+    * This is the **SQL Server connection string** that the `mssql-mcp` tool uses to connect to your database.
+    * Because the server now runs directly on your machine, use the same hostname and port you would use from SSMS, Azure Data Studio, or `sqlcmd`.
     * `Database=MyDb`: The name of the specific database you want to connect to.
     * `User Id=myUser; Password=My(!)Password;`: The credentials for a user (`myUser`) to log into your SQL Server.
     * `TrustServerCertificate=true;`: This tells the client to **skip validating the server's SSL/TLS certificate**. While convenient for development or when 
@@ -187,159 +150,35 @@ This section defines the **environment variables** that will be set when Docker 
 ---
 ##### In a Nutshell:
 
-This configuration enables Claude Desktop to run a SQL Server-specific MCP server inside a Docker container. This server then uses the provided connection
+This configuration enables Claude Desktop to run a SQL Server-specific MCP server as a local .NET tool. This server then uses the provided connection
 string to establish a connection to your SQL Server database, allowing Claude to interact with your data through this custom tool.
 
-### Local Binary Configuration
+### Multiple Database Configuration
 
-If running the built binary directly instead of Docker:
+Add one MCP server entry per database, each with its own connection string. The client starts the .NET tool process when it needs that database connection.
 
 ```json
 {
   "mcpServers": {
-    "mssql": {
-      "command": "/path/to/mssql-mcp/src/MSSQL.MCP/bin/Release/net9.0/MSSQL.MCP",
+    "orders-db": {
+      "command": "mssql-mcp",
       "env": {
-        "MSSQL_CONNECTION_STRING": "Server=localhost;Database=MyDB;Trusted_Connection=true;"
+        "MSSQL_CONNECTION_STRING": "Server=localhost,1433;Database=Orders;User Id=myUser;Password=My(!)Password;TrustServerCertificate=true;"
+      }
+    },
+    "billing-db": {
+      "command": "mssql-mcp",
+      "env": {
+        "MSSQL_CONNECTION_STRING": "Server=localhost,1433;Database=Billing;User Id=myUser;Password=My(!)Password;TrustServerCertificate=true;"
       }
     }
   }
 }
 ```
 
-## Docker Networking Issues
+## Connection Notes
 
-### Understanding the Problem
-
-When running the MCP server as a Docker container, you'll encounter networking challenges when trying to connect to SQL Server instances running on your host machine or in other containers. Docker containers are isolated from the host network by default, making `localhost` connections impossible.
-
-### Solutions by Scenario
-
-#### Scenario 1: SQL Server Running on Host Machine
-
-**Problem**: Your SQL Server is installed directly on Windows/macOS/Linux, and you want the containerized MCP server to connect to it.
-
-**Solution**: Use `host.docker.internal` instead of `localhost` in your connection string.
-
-```bash
-# ❌ This won't work - localhost refers to the container itself
-docker run -it --rm \
-  -e MSSQL_CONNECTION_STRING="Server=localhost;Database=MyDB;User Id=sa;Password=YourPassword123!;" \
-  mssql-mcp:latest
-
-# ✅ This works - host.docker.internal refers to the host machine
-docker run -it --rm \
-  -e MSSQL_CONNECTION_STRING="Server=host.docker.internal;Database=MyDB;User Id=sa;Password=YourPassword123!;" \
-  mssql-mcp:latest
-```
-
-**Updated MCP Client Configuration:**
-```json
-{
-  "mcpServers": {
-    "mssql": {
-      "command": "docker",
-      "args": [
-        "run", "-i", "--rm",
-        "-e", "MSSQL_CONNECTION_STRING=Server=host.docker.internal;Database=MyDB;User Id=sa;Password=YourPassword123!;",
-        "mssql-mcp:latest"
-      ]
-    }
-  }
-}
-```
-
-#### Scenario 2: SQL Server in Another Docker Container
-
-**Solution**: Use Docker Compose with a custom network and reference containers by service name.
-
-```yaml
-version: '3.8'
-networks:
-  sql-network:
-    driver: bridge
-
-services:
-  mssql-mcp:
-    build: .
-    environment:
-      # Use the service name 'sqlserver' as the hostname
-      - MSSQL_CONNECTION_STRING=Server=sqlserver;Database=MyDatabase;User Id=sa;Password=YourPassword123!;
-    stdin_open: true
-    tty: true
-    networks:
-      - sql-network
-    depends_on:
-      - sqlserver
-      
-  sqlserver:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    environment:
-      - ACCEPT_EULA=Y
-      - SA_PASSWORD=YourPassword123!
-    networks:
-      - sql-network
-    ports:
-      - "1433:1433"  # Expose to host for external tools
-```
-
-#### Scenario 3: Linux with Host Network Mode
-
-**Linux Only Solution**: Use Docker's host networking mode for direct host network access.
-
-```bash
-# Linux only - shares the host's network stack
-docker run -it --rm --network host \
-  -e MSSQL_CONNECTION_STRING="Server=localhost;Database=MyDB;User Id=sa;Password=YourPassword123!;" \
-  mssql-mcp:latest
-```
-
-### Platform-Specific Considerations
-
-| Platform | host.docker.internal | Host Network Mode | Recommended Solution |
-|----------|---------------------|-------------------|---------------------|
-| **Windows** | ✅ Works out of box | ❌ Not supported | Use `host.docker.internal` |
-| **macOS** | ✅ Works out of box | ❌ Not supported | Use `host.docker.internal` |
-| **Linux** | ⚠️ Requires `--add-host` | ✅ Supported | Use `--network host` or `host.docker.internal` |
-
-**Linux `host.docker.internal` setup:**
-```bash
-docker run -it --rm \
-  --add-host=host.docker.internal:host-gateway \
-  -e MSSQL_CONNECTION_STRING="Server=host.docker.internal;Database=MyDB;User Id=sa;Password=YourPassword123!;" \
-  mssql-mcp:latest
-```
-
-### Testing Network Connectivity
-
-To verify your container can reach the SQL Server:
-
-```bash
-# Test from inside a running container
-docker exec -it <container_name> ping host.docker.internal
-
-# Test SQL Server port specifically
-docker run --rm -it mcr.microsoft.com/mssql-tools \
-  /bin/bash -c "sqlcmd -S host.docker.internal -U sa -P 'YourPassword123!' -Q 'SELECT @@VERSION'"
-```
-
-### Common Networking Troubleshooting
-
-1. **Connection Refused**: 
-   - Verify SQL Server is listening on all interfaces: `netstat -an | grep 1433`
-   - Check Windows Firewall allows Docker subnet access
-
-2. **DNS Resolution**:
-   - Test: `docker run --rm busybox nslookup host.docker.internal`
-   - Ensure Docker Desktop is running (for Windows/macOS)
-
-3. **Container-to-Container**:
-   - Verify both containers are on the same Docker network
-   - Use container service names, not localhost
-
-4. **Port Conflicts**:
-   - Ensure port 1433 isn't already bound by another process
-   - Check with: `netstat -tlnp | grep 1433`
+Since the MCP server runs as a local process, `localhost` means your machine. If SQL Server is running in Docker, publish its port to the host and connect to `localhost,<published-port>`.
 
 ## Usage Examples
 
@@ -400,11 +239,11 @@ GRANT VIEW DEFINITION ON SCHEMA::dbo TO mcp_readwrite;
 3. **Enable TCP/IP**: Ensure TCP/IP protocol is enabled in SQL Server Configuration Manager
 4. **Authentication mode**: Verify SQL Server is configured for the appropriate authentication mode
 
-### Container Issues
+### Tool Launch Issues
 
-1. **Network connectivity**: Use `host.docker.internal` instead of `localhost` when connecting from container to host
-2. **Environment variables**: Ensure the connection string is properly escaped in Docker commands
-3. **Logs**: Check container logs with `docker logs <container_id>`
+1. **Command not found**: Ensure `mssql-mcp` is installed and the .NET tools directory is on the MCP client's PATH
+2. **Environment variables**: Ensure the connection string is set under the MCP server entry's `env` block
+3. **Direct command path**: If your desktop app does not inherit PATH changes, set `command` to the full path of the installed tool
 
 ## License
 
@@ -420,7 +259,6 @@ This software is licensed under Apache 2.0 and is available "as is" - this means
 
 ## Architecture
 
-- **[Akka.NET](https://getakka.net/)**: Used for internal actor system coordination and database validation
 - **[MCP C# SDK](https://github.com/modelcontextprotocol/csharp-sdk)**: Official Model Context Protocol implementation
 - **Microsoft.Data.SqlClient**: High-performance SQL Server connectivity
 
